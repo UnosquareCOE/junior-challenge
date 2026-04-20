@@ -53,6 +53,10 @@ class RouteStrategy(ABC):
         pass
 
 
+REQUIRED_COUNTRIES = ['USA', 'Mexico', 'Canada']
+MIN_MATCHES = 5
+
+
 def build_route(ordered_matches: list, strategy_name: str) -> dict:
     """
     Build an OptimisedRoute from an ordered list of matches.
@@ -65,7 +69,7 @@ def build_route(ordered_matches: list, strategy_name: str) -> dict:
         strategy_name: Name of the strategy that produced this ordering
 
     Returns:
-        dict with stops, totalDistance, and strategy
+        dict with stops, totalDistance, strategy, and validation fields
     """
     total_distance = 0
     stops = []
@@ -89,8 +93,25 @@ def build_route(ordered_matches: list, strategy_name: str) -> dict:
             'distanceFromPrevious': distance_from_previous,
         })
 
+    # Calculate countries visited
+    countries_visited = list(set(match['city']['country'] for match in ordered_matches))
+    missing_countries = [c for c in REQUIRED_COUNTRIES if c not in countries_visited]
+
+    # Validate route
+    warnings = []
+    if len(ordered_matches) < MIN_MATCHES:
+        warnings.append(f'Route must have at least {MIN_MATCHES} matches (currently {len(ordered_matches)})')
+    if missing_countries:
+        warnings.append(f'Missing countries: {", ".join(missing_countries)}')
+
+    feasible = len(ordered_matches) >= MIN_MATCHES and len(missing_countries) == 0
+
     return {
         'stops': stops,
         'totalDistance': total_distance,
         'strategy': strategy_name,
+        'feasible': feasible,
+        'warnings': warnings,
+        'countriesVisited': countries_visited,
+        'missingCountries': missing_countries,
     }
